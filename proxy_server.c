@@ -55,15 +55,17 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
     }
 
     // Make it non-blocking
-    fcntl(ps->fd, F_SETFL, O_NONBLOCK);
+    if (fcntl(ps->fd, F_SETFL, O_NONBLOCK) < 0) {
+        perror("fcntl: server");
+    }
 
+    // Build the address to listen on
     server_addr.sin6_family = AF_INET6;
     server_addr.sin6_addr = in6addr_any;
     server_addr.sin6_port = htons(port);
 
     // Prevent socket reuse errors
-    if (setsockopt(ps->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse))
-    {
+    if (setsockopt(ps->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse)) {
         perror("setsockopt");
         return 1;
     }
@@ -74,6 +76,7 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
         return 1;
     }
 
+    // Listen for clients
     if (listen(ps->fd, 7)) {
         perror("listen");
         return 1;
@@ -84,11 +87,6 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
         .events = EPOLLIN,
         .data.ptr = &ps->accept_cb
     };
-    /*
-    struct epoll_event *event = (struct epoll_event *)malloc(sizeof (struct epoll_event));
-    event->events = EPOLLIN;
-    event->data.ptr = ps;
-    */
     if (epoll_ctl(ps->epoll_fd, EPOLL_CTL_ADD, ps->fd, &event) < 0) {
         perror("epoll_ctl");
         return 1;
@@ -134,6 +132,10 @@ int proxy_server_accept(struct proxy_server *ps) {
     if ((client_fd = accept(ps->fd, &addr, &addrlen)) < 0) {
         perror("accept");
         return -1;
+    }
+
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0) {
+        perror("fcntl: client");
     }
 
     printf("Accepted connection from %s\n", sprint_addrport(&addr));
