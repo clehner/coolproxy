@@ -2,13 +2,13 @@
 #ifndef PROXY_SERVER_H
 #define PROXY_SERVER_H
 
+#include "eventloop.h"
+
 struct proxy_server;
 
-struct proxy_server *proxy_server_new();
-int proxy_server_init(struct proxy_server *ps);
+struct proxy_server *proxy_server_new(struct eventloop *loop);
 int proxy_server_listen(struct proxy_server *ps, int port);
 int proxy_server_run(struct proxy_server *ps);
-int proxy_server_handle_event(struct epoll_event event);
 int proxy_server_accept(struct proxy_server *ps);
 
 int proxy_server_accept_cb(void *ps, void *data);

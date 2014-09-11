@@ -47,7 +47,3 @@ sprint_addrport(struct sockaddr *in)
 
     return buffer;
 }
-
-int do_callback(struct callback *cb, void *data) {
-    return cb->fn ? cb->fn(cb->obj, data) : -1;
-}
