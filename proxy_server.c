@@ -13,13 +13,13 @@
 
 struct proxy_server {
     int fd;
-    struct eventloop *loop;
+    eventloop_t loop;
     struct callback accept_cb;
 };
 
 static int proxy_server_accept_cb(void *ps, void *data);
 
-struct proxy_server *proxy_server_new(struct eventloop *loop) {
+struct proxy_server *proxy_server_new(eventloop_t loop) {
     struct proxy_server *ps = malloc(sizeof(struct proxy_server));
     if (!ps) {
         return NULL;

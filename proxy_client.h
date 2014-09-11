@@ -7,7 +7,7 @@
 struct proxy_client;
 struct proxy_server;
 
-struct proxy_client *proxy_client_new(struct eventloop *loop,
+struct proxy_client *proxy_client_new(eventloop_t loop,
 		struct proxy_server *server, int sockfd);
 int proxy_client_read(struct proxy_client *ps);
 

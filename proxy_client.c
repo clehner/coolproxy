@@ -8,14 +8,14 @@
 
 struct proxy_client {
 	int fd;
-    struct eventloop *loop;
+    eventloop_t loop;
 	struct proxy_server *server;
     struct callback recv_cb;
 };
 
 static int proxy_client_recv_cb(void *client, void *data);
 
-struct proxy_client *proxy_client_new(struct eventloop *loop,
+struct proxy_client *proxy_client_new(eventloop_t loop,
 		struct proxy_server *server, int sockfd) {
     struct proxy_client *client = malloc(sizeof(struct proxy_client));
     if (!client) return NULL;
