@@ -6,15 +6,18 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include "proxy_server.h"
-#include "eventloop.h"
 #include "util.h"
+#include "eventloop.h"
+#include "proxy_server.h"
+#include "proxy_client.h"
 
 struct proxy_server {
     int fd;
     struct eventloop *loop;
     struct callback accept_cb;
 };
+
+static int proxy_server_accept_cb(void *ps, void *data);
 
 struct proxy_server *proxy_server_new(struct eventloop *loop) {
     struct proxy_server *ps = malloc(sizeof(struct proxy_server));
@@ -91,6 +94,7 @@ int proxy_server_accept(struct proxy_server *ps) {
     struct sockaddr addr;
     socklen_t addrlen = sizeof addr;
     int client_fd;
+    struct proxy_client *client;
 
     if ((client_fd = accept(ps->fd, &addr, &addrlen)) < 0) {
         perror("accept");
@@ -103,6 +107,18 @@ int proxy_server_accept(struct proxy_server *ps) {
 
     printf("Accepted connection from %s\n", sprint_addrport(&addr));
 
+    if (!(client = proxy_client_new(ps->loop, ps, client_fd))) {
+        fprintf(stderr, "Unable to create proxy client\n");
+        if (!close(client_fd)) {
+            perror("close client_fd");
+        }
+        return 1;
+    }
+
     return 0;
 }
 
+void proxy_server_notify_client_closed(struct proxy_server *ps,
+		struct proxy_client *client) {
+    free(client);
+}
