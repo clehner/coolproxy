@@ -13,7 +13,9 @@ struct proxy_client {
     struct callback recv_cb;
 };
 
-static int proxy_client_recv_cb(void *client, void *data);
+static int proxy_client_recv_cb(void *client, void *data) {
+    return proxy_client_recv((struct proxy_client *)client);
+}
 
 struct proxy_client *proxy_client_new(eventloop_t loop,
 		struct proxy_server *server, int sockfd) {
@@ -56,9 +58,5 @@ int proxy_client_recv(struct proxy_client *client) {
 		printf("got %zu bytes: \"%s\"\n", len, buf);
 		return 0;
 	}
-}
-
-static int proxy_client_recv_cb(void *client, void *data) {
-    return proxy_client_recv((struct proxy_client *)client);
 }
 

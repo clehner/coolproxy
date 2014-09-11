@@ -9,9 +9,7 @@ struct proxy_server;
 
 struct proxy_client *proxy_client_new(eventloop_t loop,
 		struct proxy_server *server, int sockfd);
-int proxy_client_read(struct proxy_client *ps);
+int proxy_client_recv(struct proxy_client *ps);
 
 #endif /* PROXY_CLIENT_H */
-
-
 

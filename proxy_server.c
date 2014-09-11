@@ -17,7 +17,9 @@ struct proxy_server {
     struct callback accept_cb;
 };
 
-static int proxy_server_accept_cb(void *ps, void *data);
+static int proxy_server_accept_cb(void *ps, void *data) {
+    return proxy_server_accept((struct proxy_server *)ps);
+}
 
 struct proxy_server *proxy_server_new(eventloop_t loop) {
     struct proxy_server *ps = malloc(sizeof(struct proxy_server));
@@ -83,11 +85,6 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
     printf("Listening on %s\n", sprint_addrport(addr));
 
     return 0;
-}
-
-// Wrapper function for the accept method
-int proxy_server_accept_cb(void *ps, void *data) {
-    return proxy_server_accept((struct proxy_server *)ps);
 }
 
 int proxy_server_accept(struct proxy_server *ps) {
