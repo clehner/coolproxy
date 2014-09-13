@@ -3,7 +3,7 @@ CC     ?= cc
 SRC     = $(wildcard *.c)
 OBJ     = $(SRC:.c=.o)
 CFLAGS  = -std=gnu99
-CFLAGS += -Wall
+CFLAGS += -Wall -Werror
 LDFLAGS =
 
 all: $(BIN)

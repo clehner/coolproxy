@@ -11,7 +11,7 @@
 int main(int argc, char *argv[])
 {
     struct proxy_server *ps;
-    struct eventloop *loop;
+    eventloop_t loop;
     int port;
 
     if (argc < 2) {

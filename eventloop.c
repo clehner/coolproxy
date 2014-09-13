@@ -5,10 +5,6 @@
 #include "eventloop.h"
 #include "util.h"
 
-int do_callback(struct callback *cb, void *data) {
-    return cb->fn ? cb->fn(cb->obj, data) : -1;
-}
-
 eventloop_t eventloop_new() {
     return epoll_create1(0);
 }
