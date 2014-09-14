@@ -61,6 +61,22 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     do_callback(&parser->callbacks->on_request, &req);
 }
 
+void parser_handle_header_line(struct http_parser *parser, const char *buf) {
+    struct http_parser_header header;
+
+    char *split = strchr(buf, ':');
+    if (!split) {
+        fprintf(stderr, "Missing colon in header line\n");
+        return;
+    }
+    *split = '\0';
+    for (split++; *split == ' '; split++);
+    header.name = (char *)buf;
+    header.value = split;
+
+    do_callback(&parser->callbacks->on_header, &header);
+}
+
 int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
     char *line_end;
 
@@ -88,7 +104,22 @@ int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
             break;
         case parser_mode_headers:
             // Read headers
-            fprintf(stderr, "status\n");
+
+            line_end = memchr(buf, '\n', len);
+            if (!line_end) {
+                return 400;
+            }
+            if (line_end == buf) {
+                // got a blank line
+            } else if (*(line_end-1) == '\r') {
+                // got the carriage return before the newline
+                line_end--;
+            }
+            *line_end = '\0';
+
+            if (buf == line_end) break;
+
+            parser_handle_header_line(parser, buf);
             break;
         case parser_mode_body:
             // Read response

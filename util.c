@@ -12,6 +12,11 @@ int do_callback(struct callback *cb, void *data) {
     return cb->fn ? cb->fn(cb->obj, data) : -1;
 }
 
+void callback_set(struct callback *cb, void *obj, callback_fn fn) {
+    cb->obj = obj;
+    cb->fn = fn;
+}
+
 /* sprint_addrport - Print a human-readable address and port to a string.
  * Returns a pointer to a static buffer. Do not free it. Expect it to be
  * overwritten on next call */
