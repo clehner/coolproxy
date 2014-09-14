@@ -17,9 +17,9 @@ enum http_version {
 };
 
 struct http_parser_callbacks {
-    struct callback on_status;
-    struct callback on_request;
-    struct callback on_header;
+    callback_fn on_status;
+    callback_fn on_request;
+    callback_fn on_header;
 };
 
 struct http_parser_status {
@@ -43,9 +43,11 @@ struct http_parser {
     char line_buffer[256];
     enum parser_mode mode;
     struct http_parser_callbacks *callbacks;
+    void *obj;
 };
 
-void parser_init(struct http_parser *parser, struct http_parser_callbacks *cbs);
+void parser_init(struct http_parser *parser, struct http_parser_callbacks *cbs,
+        void *obj);
 int parser_parse(struct http_parser *parser, const char *buf, size_t len);
 
 #endif /* HTTP_PARSER_H */

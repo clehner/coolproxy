@@ -6,10 +6,14 @@
 #include <assert.h>
 #include "http_parser.h"
 
+#define parser_callback(obj, cb, data) \
+    obj->callbacks->cb ? obj->callbacks->cb(obj, data) : 0
+
 void parser_init(struct http_parser *parser,
-        struct http_parser_callbacks *callbacks) {
+        struct http_parser_callbacks *callbacks, void *obj) {
     parser->mode = parser_mode_new;
     parser->callbacks = callbacks;
+    parser->obj = obj;
 }
 
 void parse_http_version(enum http_version *version, char *version_str) {
@@ -29,14 +33,14 @@ void parser_handle_status_line(struct http_parser *parser, const char *buf) {
 
     strncpy(line, buf, sizeof line);
     printf("got status line %s\n", line);
-    sscanf(buf, "HTTP/1.1 %d %s", &status.code, status.reason);
-    do_callback(&parser->callbacks->on_status, &status);
+    sscanf(buf, "HTTP/1.1 %hd %s", &status.code, status.reason);
+    parser_callback(parser, on_status, &status);
 }
 
 void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     struct http_parser_request req;
 
-    printf("got status line\n");
+    printf("got request line\n");
 
     // Get the first word of the line (request method)
     char *first = strchr(buf, ' ');
@@ -58,7 +62,7 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     }
 
     //sscanf(buf, "%s %s HTTP/%s", req.method, req.uri, http_version_str);
-    do_callback(&parser->callbacks->on_request, &req);
+    parser_callback(parser, on_request, &req);
 }
 
 void parser_handle_header_line(struct http_parser *parser, const char *buf) {
@@ -74,7 +78,7 @@ void parser_handle_header_line(struct http_parser *parser, const char *buf) {
     header.name = (char *)buf;
     header.value = split;
 
-    do_callback(&parser->callbacks->on_header, &header);
+    parser_callback(parser, on_header, &header);
 }
 
 int parser_parse(struct http_parser *parser, const char *buf, size_t len) {

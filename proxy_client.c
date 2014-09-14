@@ -20,7 +20,6 @@ struct proxy_client {
     struct proxy_server *server;
     struct callback recv_cb;
     struct http_parser parser;
-    struct http_parser_callbacks parser_callbacks;
 };
 
 int proxy_client_on_http_request(struct proxy_client *client,
@@ -33,6 +32,11 @@ static int proxy_client_recv_cb(void *client, void *data) {
     return proxy_client_recv((struct proxy_client *)client);
 }
 
+static struct http_parser_callbacks parser_callbacks = {
+    .on_header = (callback_fn) proxy_client_on_http_header,
+    .on_request = (callback_fn) proxy_client_on_http_request,
+};
+
 struct proxy_client *proxy_client_new(eventloop_t loop,
         struct proxy_server *server, int sockfd) {
     struct proxy_client *client = calloc(1, sizeof(struct proxy_client));
@@ -42,15 +46,9 @@ struct proxy_client *proxy_client_new(eventloop_t loop,
     client->loop = loop;
     client->server = server;
 
-    parser_init(&client->parser, &client->parser_callbacks);
+    parser_init(&client->parser, &parser_callbacks, client);
 
     callback_set(&client->recv_cb, client, proxy_client_recv_cb);
-
-    callback_set(&client->parser_callbacks.on_request, client,
-            (callback_fn) proxy_client_on_http_request);
-
-    callback_set(&client->parser_callbacks.on_header, client,
-            (callback_fn) proxy_client_on_http_header);
 
     // Register the server socket in the event loop
     if (eventloop_add(loop, sockfd, &client->recv_cb) < 0) {
