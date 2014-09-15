@@ -8,15 +8,20 @@ CFLAGS  = -std=gnu99
 CFLAGS += -Wall -Werror -MMD
 LDFLAGS =
 
+ifndef V
+	QUIET_CC   = @echo ' CC   ' $<;
+	QUIET_LINK = @echo ' LINK ' $@;
+endif
+
 all: check $(BIN)
 
 -include $(DEP)
 
 $(BIN): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(QUIET_LINK)$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
 check: $(SRC) $(INC)
 	@awk -f stylecheck.awk $? && touch $@
@@ -24,4 +29,4 @@ check: $(SRC) $(INC)
 clean:
 	rm -f $(BIN) $(OBJ) $(DEP)
 
-.PHONY: clean check
+.PHONY: clean
