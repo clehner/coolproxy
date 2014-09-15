@@ -3,11 +3,11 @@
 #define PROXY_WORKER_H
 
 struct proxy_worker {
-	struct proxy_worker *next;
-	struct proxy_worker *prev;
-	char *host;
-	unsigned short port;
-	bool idle;
+    struct proxy_worker *next;
+    struct proxy_worker *prev;
+    char *host;
+    unsigned short port;
+    bool idle;
 };
 
 struct proxy_worker *proxy_worker_new(const char *host, unsigned short port);

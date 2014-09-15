@@ -118,7 +118,7 @@ int proxy_server_accept(struct proxy_server *ps) {
 }
 
 void proxy_server_notify_client_closed(struct proxy_server *ps,
-		struct proxy_client *client) {
+        struct proxy_client *client) {
     free(client);
 }
 

@@ -12,7 +12,7 @@ int proxy_server_listen(struct proxy_server *ps, int port);
 int proxy_server_run(struct proxy_server *ps);
 int proxy_server_accept(struct proxy_server *ps);
 void proxy_server_notify_client_closed(struct proxy_server *ps,
-		struct proxy_client *client);
+        struct proxy_client *client);
 struct proxy_worker *proxy_server_request_worker(struct proxy_server *ps,
         const char *host, unsigned short port);
 

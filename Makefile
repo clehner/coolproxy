@@ -15,13 +15,8 @@ $(BIN): $(OBJ)
 .o:
 	$(CC) -o $@ $< -c $(CFLAGS)
 
-check:
-	@awk '/\s$$/ {\
-			status=1;\
-			print "Found lines ending with whitespace:";\
-			print FILENAME ":" FNR;\
-		}\
-		END { exit status }' $(SRC) $(INC)
+check: $(SRC) $(INC)
+	@awk -f stylecheck.awk $? && touch $@
 
 clean:
 	rm -f $(BIN) $(OBJ)
