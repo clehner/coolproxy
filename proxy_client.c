@@ -8,6 +8,7 @@
 #include "proxy_server.h"
 #include "proxy_client.h"
 #include "http_parser.h"
+#include "proxy_worker.h"
 
 #define status(code, reason) \
     const char err_##code[] = "HTTP/1.1 "#code" "#reason"\r\n\r\n";
@@ -16,6 +17,7 @@ status(200, OK)
 status(400, Bad Request)
 status(500, Internal Server Error)
 status(501, Not Implemented)
+status(503, Service Unavailable)
 status(505, HTTP Version Not Supported)
 
 #define proxy_client_send_status(client, code) \
@@ -101,6 +103,7 @@ int proxy_client_recv(struct proxy_client *client) {
 int proxy_client_on_http_request(struct proxy_client *client,
         struct http_parser_request *request) {
     char buf[256];
+    struct proxy_worker *worker;
 
     // Check HTTP version
     if (request->http_version.major_version > 1) {
@@ -122,8 +125,15 @@ int proxy_client_on_http_request(struct proxy_client *client,
         return proxy_client_send_status(client, 400);
     }
 
+    // Request a worker from the server for this hostname
+    worker = proxy_server_request_worker(client->server,
+            request->uri.host, request->uri.port);
+    if (!worker) {
+        return proxy_client_send_status(client, 503);
+    }
+
     int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",
-            request->uri.host, request->uri.port, request->uri.path);
+            worker->host, worker->port, request->uri.path);
     if (len < 0) {
         perror("snprintf: client http status");
         send(client->fd, err_500, sizeof err_500, 0);
@@ -134,7 +144,6 @@ int proxy_client_on_http_request(struct proxy_client *client,
         perror("send");
     }
 
-    // Request a worker from the server for this hostname
     // Set callbacks on the worker
     // Issue the request to the worker
 

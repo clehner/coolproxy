@@ -10,11 +10,13 @@
 #include "eventloop.h"
 #include "proxy_server.h"
 #include "proxy_client.h"
+#include "proxy_worker.h"
 
 struct proxy_server {
     int fd;
     eventloop_t loop;
     struct callback accept_cb;
+    struct proxy_worker workers;
 };
 
 static int proxy_server_accept_cb(void *ps, void *data) {
@@ -22,7 +24,7 @@ static int proxy_server_accept_cb(void *ps, void *data) {
 }
 
 struct proxy_server *proxy_server_new(eventloop_t loop) {
-    struct proxy_server *ps = malloc(sizeof(struct proxy_server));
+    struct proxy_server *ps = calloc(1, sizeof(struct proxy_server));
     if (!ps) {
         return NULL;
     }
@@ -118,4 +120,33 @@ int proxy_server_accept(struct proxy_server *ps) {
 void proxy_server_notify_client_closed(struct proxy_server *ps,
 		struct proxy_client *client) {
     free(client);
+}
+
+struct proxy_worker *proxy_server_request_worker(struct proxy_server *ps,
+        const char *host, unsigned short port) {
+    struct proxy_worker *worker;
+
+    // Look for an idle worker for this host/port
+    // TODO: use a hash table instead of linked list
+    for (struct proxy_worker *w = &ps->workers; w; w = w->next) {
+        if (w->idle && port == w->port && !strcmp(host, w->host)) {
+            printf("Found idle worker\n");
+            // Found an idle worker for this host/port
+            //w->idle = false;
+            return w;
+        }
+    }
+
+    // Allocate a new worker
+    printf("Allocating new worker\n");
+    worker = proxy_worker_new(host, port);
+    if (!worker) return NULL;
+
+    // Insert the worker into the linked list
+    if (ps->workers.next) {
+        ps->workers.next->prev = worker;
+    }
+    worker->next = ps->workers.next;
+    ps->workers.next = worker;
+    return worker;
 }
