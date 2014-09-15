@@ -12,8 +12,8 @@ all: check $(BIN)
 $(BIN): $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-.o:
-	$(CC) -o $@ $< -c $(CFLAGS)
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 check: $(SRC) $(INC)
 	@awk -f stylecheck.awk $? && touch $@
