@@ -10,10 +10,21 @@ enum parser_mode {
     parser_mode_body
 };
 
-enum http_version {
-    http_version_1_0,
-    http_version_1_1,
-    http_version_unknown
+enum http_scheme {
+    http_scheme_http,
+    http_scheme_other
+};
+
+struct http_version {
+    char major_version;
+    char minor_version;
+};
+
+struct http_uri {
+    enum http_scheme scheme;
+    char *host;
+    unsigned short int port;
+    char *path;
 };
 
 struct http_parser_callbacks {
@@ -23,15 +34,15 @@ struct http_parser_callbacks {
 };
 
 struct http_parser_status {
-    enum http_version http_version;
+    struct http_version http_version;
     unsigned short code;
     char *reason;
 };
 
 struct http_parser_request {
     char *method;
-    char *uri;
-    enum http_version http_version;
+    struct http_uri uri;
+    struct http_version http_version;
 };
 
 struct http_parser_header {

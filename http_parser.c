@@ -6,8 +6,10 @@
 #include <assert.h>
 #include "http_parser.h"
 
-#define parser_callback(obj, cb, data) \
-    obj->callbacks->cb ? obj->callbacks->cb(obj, data) : 0
+#define parser_callback(parser, cb, data) \
+    parser->callbacks->cb ? parser->callbacks->cb(parser->obj, data) : 0
+
+int parse_uri();
 
 void parser_init(struct http_parser *parser,
         struct http_parser_callbacks *callbacks, void *obj) {
@@ -16,16 +18,22 @@ void parser_init(struct http_parser *parser,
     parser->obj = obj;
 }
 
-void parse_http_version(enum http_version *version, char *version_str) {
-    assert(version);
-    if (!strcmp("HTTP/1.0", version_str)) {
-        *version = http_version_1_0;
-    } else if (!strcmp("HTTP/1.1", version_str)) {
-        *version = http_version_1_1;
-    } else {
-        *version = http_version_unknown;
+void parse_http_version(struct http_version *version, char *version_str) {
+    if (!version_str || strncmp("HTTP/", version_str, 5)) {
+        version->major_version = -1;
+        version->minor_version = 0;
+        return;
     }
-};
+
+    assert(version);
+    assert(version_str);
+    char *point = strchr(version_str, ' ');
+    if (point) {
+        *point = '\0';
+        version->minor_version = atoi(point+1);
+    }
+    version->major_version = atoi(version_str);
+}
 
 void parser_handle_status_line(struct http_parser *parser, const char *buf) {
     char line[256];
@@ -39,8 +47,7 @@ void parser_handle_status_line(struct http_parser *parser, const char *buf) {
 
 void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     struct http_parser_request req;
-
-    printf("got request line\n");
+    char *uri;
 
     // Get the first word of the line (request method)
     char *first = strchr(buf, ' ');
@@ -50,18 +57,54 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     }
     *first = '\0';
     req.method = (char *)buf;
-    req.uri = first+1;
+    uri = first+1;
 
     // Get the last word of the line (HTTP version)
-    char *last = strrchr(req.uri, ' ');
+    char *last = strrchr(uri, ' ');
     if (!last) {
-        req.http_version = http_version_unknown;
+        req.http_version.major_version = -1;
+        req.http_version.minor_version = 0;
     } else {
         *last = '\0';
         parse_http_version(&req.http_version, last+1);
     }
 
-    //sscanf(buf, "%s %s HTTP/%s", req.method, req.uri, http_version_str);
+    // Look for scheme before "://"
+    char *colon = strchr(uri, ':');
+    if (colon && colon[1] == '/' && colon[2] == '/') {
+        *colon = '\0';
+        char *scheme = uri;
+        uri = colon + 3;
+        req.uri.scheme = !strcmp("http", scheme)
+            ? http_scheme_http
+            : http_scheme_other;
+    } else {
+        // Be lenient and assume http if no scheme is given
+        req.uri.scheme = http_scheme_http;
+    }
+
+    // Get the hostname, port and path
+    char *slash = strchr(uri, '/');
+    if (slash && slash != uri) {
+        *slash = '\0';
+        char *host = uri;
+        uri = slash + 1;
+
+        colon = strchr(host, ':');
+        if (colon) {
+            *colon = '\0';
+            req.uri.port = atoi(colon + 1);
+        } else {
+            req.uri.port = 80;
+        }
+        req.uri.host = host;
+    } else {
+        req.uri.host = NULL;
+    }
+
+    // Note: the path has initial slash removed
+    req.uri.path = uri;
+
     parser_callback(parser, on_request, &req);
 }
 

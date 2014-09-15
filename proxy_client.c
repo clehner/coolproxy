@@ -1,6 +1,7 @@
 // vi: expandtab sts=4 ts=4 sw=4
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include "eventloop.h"
@@ -8,8 +9,17 @@
 #include "proxy_client.h"
 #include "http_parser.h"
 
-const char err_400[] = "HTTP/1.1 400 Bad Request\r\n\r\n";
-const char err_500[] = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+#define status(code, reason) \
+    const char err_##code[] = "HTTP/1.1 "#code" "#reason"\r\n\r\n";
+
+status(200, OK)
+status(400, Bad Request)
+status(500, Internal Server Error)
+status(501, Not Implemented)
+status(505, HTTP Version Not Supported)
+
+#define proxy_client_send_status(client, code) \
+    send(client->fd, err_##code, sizeof err_##code, 0)
 
 /*
  * a client that has connected to the proxy server
@@ -20,6 +30,7 @@ struct proxy_client {
     struct proxy_server *server;
     struct callback recv_cb;
     struct http_parser parser;
+    bool persistent_connection;
 };
 
 int proxy_client_on_http_request(struct proxy_client *client,
@@ -45,6 +56,7 @@ struct proxy_client *proxy_client_new(eventloop_t loop,
     client->fd = sockfd;
     client->loop = loop;
     client->server = server;
+    client->persistent_connection = false;
 
     parser_init(&client->parser, &parser_callbacks, client);
 
@@ -79,7 +91,7 @@ int proxy_client_recv(struct proxy_client *client) {
     switch (parser_parse(&client->parser, buf, len)) {
         case 400:
             fprintf(stderr, "Received message without \\r\n");
-            send(client->fd, err_400, sizeof err_400, 0);
+            proxy_client_send_status(client, 400);
             return 1;
         default:
             return 0;
@@ -89,16 +101,43 @@ int proxy_client_recv(struct proxy_client *client) {
 int proxy_client_on_http_request(struct proxy_client *client,
         struct http_parser_request *request) {
     char buf[256];
-    // Respond to the client with the equivalent response line
-    int len = snprintf(buf, sizeof buf, "HTTP/1.1 %d You requested %s %s\r\n",
-            200, request->method, request->uri);
+
+    // Check HTTP version
+    if (request->http_version.major_version > 1) {
+        return proxy_client_send_status(client, 505);
+    }
+
+    // Assume persistent connection for HTTP/1.1 client, for now
+    if (request->http_version.minor_version >= 1) {
+        client->persistent_connection = true;
+    }
+
+    // Check scheme
+    if (request->uri.scheme != http_scheme_http) {
+        return proxy_client_send_status(client, 501);
+    }
+
+    // Give an error if the uri is just a path
+    if (!request->uri.host) {
+        return proxy_client_send_status(client, 400);
+    }
+
+    int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",
+            request->uri.host, request->uri.port, request->uri.path);
     if (len < 0) {
         perror("snprintf: client http status");
         send(client->fd, err_500, sizeof err_500, 0);
         return 1;
     }
+    ssize_t bytes = send(client->fd, buf, len, 0);
+    if (bytes < len) {
+        perror("send");
+    }
 
-    send(client->fd, buf, len, 0);
+    // Request a worker from the server for this hostname
+    // Set callbacks on the worker
+    // Issue the request to the worker
+
     return 0;
 }
 
