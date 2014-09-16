@@ -9,6 +9,7 @@ typedef int eventloop_t;
 
 eventloop_t eventloop_new();
 int eventloop_add(eventloop_t loop, int fd, struct callback *cb);
+int eventloop_mod(eventloop_t loop, int fd, struct callback *cb);
 int eventloop_run(eventloop_t loop);
 
 #endif /* EVENTLOOP_H */

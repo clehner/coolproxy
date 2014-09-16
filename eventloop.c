@@ -17,6 +17,14 @@ int eventloop_add(eventloop_t loop, int fd, struct callback *cb) {
     return epoll_ctl(loop, EPOLL_CTL_ADD, fd, &event);
 }
 
+int eventloop_mod(eventloop_t loop, int fd, struct callback *cb) {
+    struct epoll_event event = {
+        .events = EPOLLIN,
+        .data.ptr = cb
+    };
+    return epoll_ctl(loop, EPOLL_CTL_MOD, fd, &event);
+}
+
 int eventloop_run(eventloop_t loop) {
     int status = 0;
     struct epoll_event events[12];

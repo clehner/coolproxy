@@ -142,6 +142,8 @@ int proxy_client_on_http_request(struct proxy_client *client,
         }
     }
 
+    proxy_worker_request(worker, request->method, request->uri.path);
+
     int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",
             worker->host, worker->port, request->uri.path);
     if (len < 0) {

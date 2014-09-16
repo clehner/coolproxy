@@ -18,5 +18,6 @@ int do_callback(struct callback *cb, void *data);
 void callback_set(struct callback *cb, void *obj, callback_fn fn);
 
 const char *sprint_addrport(struct sockaddr *addr);
+int sendall(int s, const char *buf, ssize_t len);
 
 #endif /* UTIL_H */

@@ -56,3 +56,17 @@ sprint_addrport(struct sockaddr *in)
 
     return buffer;
 }
+
+int sendall(int s, const char *buf, ssize_t len) {
+    ssize_t bytesleft = len; // how many we have left to send
+    ssize_t n;
+
+    while (bytesleft > 0) {
+        n = send(s, buf, bytesleft, 0);
+        if (n == -1) return -1;
+        bytesleft -= n;
+        buf += n;
+    }
+
+    return 0;
+}

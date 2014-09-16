@@ -2,19 +2,40 @@
 #ifndef PROXY_WORKER_H
 #define PROXY_WORKER_H
 
+struct msg {
+    char *data;
+    size_t len;
+    struct msg *next;
+};
+
 struct proxy_worker {
     struct proxy_worker *next;
     struct proxy_worker *prev;
+    struct callback connect_cb;
+    struct callback recv_cb;
     char *host;
     unsigned short port;
     bool idle;
     bool connected;
+    eventloop_t loop;
     int fd;
+    struct addrinfo *addrs, *rp; // resolved addresses for connects in progress
+    struct msg *send_queue;
 };
 
-struct proxy_worker *proxy_worker_new(const char *host, unsigned short port);
+struct proxy_worker *proxy_worker_new(const char *host, unsigned short port,
+        eventloop_t loop);
 void proxy_worker_free(struct proxy_worker *worker);
+int proxy_worker_resolve(struct proxy_worker *worker);
 int proxy_worker_connect(struct proxy_worker *worker);
+int proxy_worker_try_connect(struct proxy_worker *worker);
+int proxy_worker_connected(struct proxy_worker *worker);
+int proxy_worker_recv(struct proxy_worker *worker);
+int proxy_worker_request(struct proxy_worker *worker, const char *method,
+        const char *uri);
+void proxy_worker_flush_queue(struct proxy_worker *worker);
+int proxy_worker_send(struct proxy_worker *worker, const char *data,
+        size_t len);
 
 #endif /* PROXY_WORKER_H */
 

@@ -124,15 +124,13 @@ struct proxy_worker *proxy_server_request_worker(struct proxy_server *ps,
         if (w->idle && w->connected &&
                 port == w->port && !strcmp(host, w->host)) {
             // Found an idle connected worker for this host/port
-            printf("Found idle worker\n");
             w->idle = false;
             return w;
         }
     }
 
     // Allocate a new worker
-    printf("Allocating new worker\n");
-    worker = proxy_worker_new(host, port);
+    worker = proxy_worker_new(host, port, ps->loop);
     if (!worker) return NULL;
 
     // Insert the worker into the linked list
