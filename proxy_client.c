@@ -38,17 +38,30 @@ struct proxy_client {
     bool persistent_connection;
 };
 
+// proxy client callbacks
+
 int proxy_client_on_http_request(struct proxy_client *client,
         struct http_parser_request *request);
 
 int proxy_client_on_http_header(struct proxy_client *client,
         struct http_parser_header *header);
 
+int proxy_client_on_http_header(struct proxy_client *client,
+        struct http_parser_header *header);
+
+int proxy_client_on_http_body(struct proxy_client *client,
+        struct body_msg *body);
+
+// proxy worker callbacks
+
 int on_worker_status(struct proxy_client *client,
         struct http_parser_status *status);
 
 int on_worker_header(struct proxy_client *client,
         struct http_parser_header *header);
+
+int on_worker_body(struct proxy_client *client,
+        struct body_msg *body);
 
 static int proxy_client_recv_cb(void *client, void *data) {
     return proxy_client_recv((struct proxy_client *)client);
@@ -57,11 +70,13 @@ static int proxy_client_recv_cb(void *client, void *data) {
 static struct http_parser_callbacks parser_callbacks = {
     .on_header = (callback_fn) proxy_client_on_http_header,
     .on_request = (callback_fn) proxy_client_on_http_request,
+    .on_body = (callback_fn) proxy_client_on_http_body,
 };
 
 static struct http_parser_callbacks worker_callbacks = {
     .on_status = (callback_fn) on_worker_status,
     .on_header = (callback_fn) on_worker_header,
+    .on_body = (callback_fn) on_worker_body,
 };
 
 struct proxy_client *proxy_client_new(eventloop_t loop,
@@ -204,6 +219,11 @@ int proxy_client_on_http_header(struct proxy_client *client,
     return 0;
 }
 
+int proxy_client_on_http_body(struct proxy_client *client,
+        struct body_msg *body) {
+    return proxy_worker_send(client->worker, body->msg, body->len);
+}
+
 int on_worker_status(struct proxy_client *client,
         struct http_parser_status *status) {
     char buf[256];
@@ -242,5 +262,13 @@ int on_worker_header(struct proxy_client *client,
     }
 
     printf("worker: %s: %s\n", header->name, header->value);
+    return 0;
+}
+
+int on_worker_body(struct proxy_client *client, struct body_msg *body) {
+    if (sendall(client->fd, body->msg, body->len) < 0) {
+        perror("send: worker body");
+        return 1;
+    }
     return 0;
 }

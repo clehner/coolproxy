@@ -15,6 +15,12 @@ enum http_scheme {
     http_scheme_other
 };
 
+struct body_msg {
+    size_t len;
+    const char *msg;
+};
+
+
 struct http_version {
     char major_version;
     char minor_version;
@@ -31,6 +37,7 @@ struct http_parser_callbacks {
     callback_fn on_status;
     callback_fn on_request;
     callback_fn on_header;
+    callback_fn on_body;
 };
 
 struct http_parser_status {

@@ -145,6 +145,7 @@ void parser_handle_header_line(struct http_parser *parser, const char *buf) {
 
 int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
     char *line_end;
+    struct body_msg data = {len, buf};
 
     switch (parser->mode) {
         case parser_mode_new:
@@ -187,7 +188,6 @@ int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
             *line_end = '\0';
 
             if (buf == line_end) {
-                printf("Got empty line\n");
                 parser_callback(parser, on_header, NULL);
                 // Receive body now
                 parser->mode = parser_mode_body;
@@ -198,7 +198,7 @@ int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
             break;
         case parser_mode_body:
             // Read response
-            printf("body\n");
+            parser_callback(parser, on_body, (void *)&data);
             break;
     }
 
