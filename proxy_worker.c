@@ -265,16 +265,3 @@ int proxy_worker_recv(struct proxy_worker *worker) {
 
     return 0;
 }
-
-int proxy_worker_on_http_request(struct proxy_worker *worker,
-        struct http_parser_header *header) {
-    if (header == NULL) {
-        // finished receiving headers
-    }
-    return 0;
-}
-
-int proxy_worker_on_http_header(struct proxy_worker *worker,
-        struct http_parser_header *header) {
-    return 0;
-}

@@ -34,6 +34,7 @@ struct proxy_client {
     struct proxy_server *server;
     struct callback recv_cb;
     struct http_parser parser;
+    struct proxy_worker *worker;
     bool persistent_connection;
 };
 
@@ -143,6 +144,7 @@ int proxy_client_on_http_request(struct proxy_client *client,
             request->uri.host, request->uri.port))) {
         return proxy_client_send_status(client, 503);
     }
+    client->worker = worker;
 
     if (!worker->connected) {
         // Establish the connection
@@ -180,7 +182,14 @@ int proxy_client_on_http_header(struct proxy_client *client,
         struct http_parser_header *header) {
     char buf[256];
     if (header == NULL) {
-        // headers ended
+        // Finished receiving headers.
+        // Send empty line to worker
+        if (!client->worker) {
+            fprintf(stderr, "Finished receiving headers but worker is gone\n");
+            return 0;
+        }
+        proxy_worker_send(client->worker, "\r\n", 2);
+        return 0;
     }
 
     int len = snprintf(buf, sizeof buf, "You sent %s: %s\r\n",
@@ -227,6 +236,11 @@ int on_worker_status(struct proxy_client *client,
 
 int on_worker_header(struct proxy_client *client,
         struct http_parser_header *header) {
+    if (header == NULL) {
+        // Server finished sending headers
+        return 0;
+    }
+
     printf("worker: %s: %s\n", header->name, header->value);
     return 0;
 }
