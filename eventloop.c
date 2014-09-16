@@ -5,24 +5,35 @@
 #include "eventloop.h"
 #include "util.h"
 
+// these correspond to the values of enum eventloop_events
+static int eventloop_epoll_events[] = {
+    EPOLLIN,
+    EPOLLOUT,
+    EPOLLIN | EPOLLOUT
+};
+
 eventloop_t eventloop_new() {
     return epoll_create1(0);
 }
 
-int eventloop_add(eventloop_t loop, int fd, struct callback *cb) {
+static int eventloop_ctl(eventloop_t loop, int fd, struct callback *cb,
+        int events, int op) {
+    if (events < 0 || events >= SIZE(eventloop_epoll_events)) {
+        return -1;
+    }
     struct epoll_event event = {
-        .events = EPOLLIN,
+        .events = eventloop_epoll_events[events],
         .data.ptr = cb
     };
-    return epoll_ctl(loop, EPOLL_CTL_ADD, fd, &event);
+    return epoll_ctl(loop, op, fd, &event);
 }
 
-int eventloop_mod(eventloop_t loop, int fd, struct callback *cb) {
-    struct epoll_event event = {
-        .events = EPOLLIN,
-        .data.ptr = cb
-    };
-    return epoll_ctl(loop, EPOLL_CTL_MOD, fd, &event);
+int eventloop_add(eventloop_t loop, int fd, struct callback *cb, int events) {
+    return eventloop_ctl(loop, fd, cb, events, EPOLL_CTL_ADD);
+}
+
+int eventloop_mod(eventloop_t loop, int fd, struct callback *cb, int events) {
+    return eventloop_ctl(loop, fd, cb, events, EPOLL_CTL_MOD);
 }
 
 int eventloop_run(eventloop_t loop) {

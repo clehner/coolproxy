@@ -74,7 +74,7 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
     }
 
     // Register the server socket in the event loop
-    if (eventloop_add(ps->loop, ps->fd, &ps->accept_cb) < 0) {
+    if (eventloop_add(ps->loop, ps->fd, &ps->accept_cb, eventloop_read) < 0) {
         perror("eventloop_add");
         return 1;
     }

@@ -67,7 +67,7 @@ struct proxy_client *proxy_client_new(eventloop_t loop,
     callback_set(&client->recv_cb, client, proxy_client_recv_cb);
 
     // Register the server socket in the event loop
-    if (eventloop_add(loop, sockfd, &client->recv_cb) < 0) {
+    if (eventloop_add(loop, sockfd, &client->recv_cb, eventloop_read) < 0) {
         perror("eventloop_add");
         return NULL;
     }

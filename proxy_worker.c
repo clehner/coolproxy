@@ -16,7 +16,6 @@
 // Callback functions
 
 static int proxy_worker_connect_cb(void *worker, void *data) {
-    printf("connect_cb\n");
     return proxy_worker_connected((struct proxy_worker *)worker);
 }
 
@@ -108,8 +107,8 @@ int proxy_worker_try_connect(struct proxy_worker *worker) {
         }
 
         // Register the server socket in the event loop
-        printf("add\n");
-        if (eventloop_add(worker->loop, worker->fd, &worker->connect_cb)) {
+        if (eventloop_add(worker->loop, worker->fd, &worker->connect_cb,
+                eventloop_write)) {
             perror("eventloop_add");
             freeaddrinfo(worker->addrs);
             close(worker->fd);
@@ -127,8 +126,6 @@ int proxy_worker_try_connect(struct proxy_worker *worker) {
         if (status == 0) {
             // Connected
             proxy_worker_connected(worker);
-        } else {
-            printf("wait\n");
         }
 
         // Wait for response from nonblocking connect
@@ -146,8 +143,6 @@ int proxy_worker_connected(struct proxy_worker *worker) {
     int err;
     socklen_t optlen = sizeof err;
 
-    printf("connected?\n");
-
     if (getsockopt(worker->fd, SOL_SOCKET, SO_ERROR, &err, &optlen)) {
         perror("getsockopt");
         return 0;
@@ -164,13 +159,15 @@ int proxy_worker_connected(struct proxy_worker *worker) {
     freeaddrinfo(worker->addrs);
 
     // Change the callback to be for recv instead of connect
-    printf("changing!\n");
-    if (eventloop_mod(worker->loop, worker->fd, &worker->recv_cb) < -1) {
-        perror("eventloop_add");
+    if (eventloop_mod(worker->loop, worker->fd, &worker->recv_cb,
+                eventloop_read) < -1) {
+        perror("eventloop_mod");
         return 0;
     }
 
     worker->connected = true;
+
+    printf("Connected to remote host.\n");
 
     // Send our request
     proxy_worker_flush_queue(worker);
