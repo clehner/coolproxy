@@ -38,9 +38,15 @@ struct proxy_client {
 };
 
 int proxy_client_on_http_request(struct proxy_client *client,
-        struct http_parser_request *status);
+        struct http_parser_request *request);
 
 int proxy_client_on_http_header(struct proxy_client *client,
+        struct http_parser_header *header);
+
+int on_worker_status(struct proxy_client *client,
+        struct http_parser_status *status);
+
+int on_worker_header(struct proxy_client *client,
         struct http_parser_header *header);
 
 static int proxy_client_recv_cb(void *client, void *data) {
@@ -50,6 +56,11 @@ static int proxy_client_recv_cb(void *client, void *data) {
 static struct http_parser_callbacks parser_callbacks = {
     .on_header = (callback_fn) proxy_client_on_http_header,
     .on_request = (callback_fn) proxy_client_on_http_request,
+};
+
+static struct http_parser_callbacks worker_callbacks = {
+    .on_status = (callback_fn) on_worker_status,
+    .on_header = (callback_fn) on_worker_header,
 };
 
 struct proxy_client *proxy_client_new(eventloop_t loop,
@@ -104,7 +115,7 @@ int proxy_client_recv(struct proxy_client *client) {
 
 int proxy_client_on_http_request(struct proxy_client *client,
         struct http_parser_request *request) {
-    char buf[256];
+    //char buf[256];
     struct proxy_worker *worker;
 
     // Check HTTP version
@@ -142,8 +153,7 @@ int proxy_client_on_http_request(struct proxy_client *client,
         }
     }
 
-    proxy_worker_request(worker, request->method, request->uri.path);
-
+    /*
     int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",
             worker->host, worker->port, request->uri.path);
     if (len < 0) {
@@ -155,9 +165,13 @@ int proxy_client_on_http_request(struct proxy_client *client,
     if (bytes < len) {
         perror("send");
     }
+    */
 
     // Set callbacks on the worker
+    parser_init(&worker->parser, &worker_callbacks, client);
+
     // Issue the request to the worker
+    proxy_worker_request(worker, request->method, request->uri.path);
 
     return 0;
 }
@@ -165,6 +179,10 @@ int proxy_client_on_http_request(struct proxy_client *client,
 int proxy_client_on_http_header(struct proxy_client *client,
         struct http_parser_header *header) {
     char buf[256];
+    if (header == NULL) {
+        // headers ended
+    }
+
     int len = snprintf(buf, sizeof buf, "You sent %s: %s\r\n",
             header->name, header->value);
     if (len < 0) {
@@ -174,5 +192,41 @@ int proxy_client_on_http_header(struct proxy_client *client,
     }
 
     send(client->fd, buf, len, 0);
+    return 0;
+}
+
+int on_worker_status(struct proxy_client *client,
+        struct http_parser_status *status) {
+    char buf[256];
+    ssize_t bytes;
+    // TODO: investigate passing the status line string directly
+
+    // Send the status line received from the worker/server, to the client
+    int len = snprintf(buf, sizeof buf, "HTTP/%hhi.%hhi %hu %s\r\n",
+            status->http_version.major_version,
+            status->http_version.minor_version,
+            status->code, status->reason);
+    if (len < 0) {
+        perror("snprintf: worker http status");
+        send(client->fd, err_500, sizeof err_500, 0);
+        return 1;
+    }
+    if (len >= sizeof buf) {
+        fprintf(stderr, "Server status line too long\n");
+        send(client->fd, err_500, sizeof err_500, 0);
+        return 1;
+    }
+
+    bytes = send(client->fd, buf, len, 0);
+    if (bytes < len) {
+        fprintf(stderr, "Server status line truncated\n");
+    }
+
+    return 0;
+}
+
+int on_worker_header(struct proxy_client *client,
+        struct http_parser_header *header) {
+    printf("worker: %s: %s\n", header->name, header->value);
     return 0;
 }

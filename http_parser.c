@@ -24,10 +24,10 @@ void parse_http_version(struct http_version *version, char *version_str) {
         version->minor_version = 0;
         return;
     }
+    // Skip past the HTTP/
+    version_str += 5;
 
-    assert(version);
-    assert(version_str);
-    char *point = strchr(version_str, ' ');
+    char *point = strchr(version_str, '.');
     if (point) {
         *point = '\0';
         version->minor_version = atoi(point+1);
@@ -35,17 +35,38 @@ void parse_http_version(struct http_version *version, char *version_str) {
     version->major_version = atoi(version_str);
 }
 
-void parser_handle_status_line(struct http_parser *parser, const char *buf) {
-    char line[256];
+int parser_handle_status_line(struct http_parser *parser, const char *buf) {
     struct http_parser_status status;
 
-    strncpy(line, buf, sizeof line);
-    printf("got status line %s\n", line);
-    sscanf(buf, "HTTP/1.1 %hd %s", &status.code, status.reason);
+    printf("got status line \"%s\"\n", buf);
+
+    // Get the first word of the line (HTTP version)
+    char *space = strchr(buf, ' ');
+    if (!space) {
+        fprintf(stderr, "Missing space\n");
+        return -1;
+    }
+    *space = '\0';
+    parse_http_version(&status.http_version, (char *)buf);
+    buf = space+1;
+
+    // Get the second word of the line (status code)
+    space = strchr(buf, ' ');
+    if (!space) {
+        fprintf(stderr, "Missing second space\n");
+        return -1;
+    }
+    *space = '\0';
+    status.code = atoi(buf);
+    status.reason = space+1;
+
+    printf("HTTP/%hhi.%hhi %hd %s\n", status.http_version.major_version,
+            status.http_version.minor_version, status.code, status.reason);
     parser_callback(parser, on_status, &status);
+    return 0;
 }
 
-void parser_handle_request_line(struct http_parser *parser, const char *buf) {
+int parser_handle_request_line(struct http_parser *parser, const char *buf) {
     struct http_parser_request req;
     char *uri;
 
@@ -53,7 +74,7 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     char *first = strchr(buf, ' ');
     if (!first) {
         fprintf(stderr, "Missing space\n");
-        return;
+        return -1;
     }
     *first = '\0';
     req.method = (char *)buf;
@@ -61,13 +82,10 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
 
     // Get the last word of the line (HTTP version)
     char *last = strrchr(uri, ' ');
-    if (!last) {
-        req.http_version.major_version = -1;
-        req.http_version.minor_version = 0;
-    } else {
+    if (last) {
         *last = '\0';
-        parse_http_version(&req.http_version, last+1);
     }
+    parse_http_version(&req.http_version, last ? last+1 : NULL);
 
     // Look for scheme before "://"
     char *colon = strchr(uri, ':');
@@ -106,6 +124,7 @@ void parser_handle_request_line(struct http_parser *parser, const char *buf) {
     req.uri.path = uri;
 
     parser_callback(parser, on_request, &req);
+    return 0;
 }
 
 void parser_handle_header_line(struct http_parser *parser, const char *buf) {
@@ -142,12 +161,15 @@ int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
                 line_end--;
             }
             *line_end = '\0';
+            int status;
             if (!strncmp("HTTP/", buf, 5)) {
-                parser_handle_status_line(parser, buf);
+                status = parser_handle_status_line(parser, buf);
             } else {
-                parser_handle_request_line(parser, buf);
+                status = parser_handle_request_line(parser, buf);
             }
-            parser->mode = parser_mode_headers;
+            if (status == 0) {
+                parser->mode = parser_mode_headers;
+            }
             break;
         case parser_mode_headers:
             // Read headers

@@ -2,6 +2,8 @@
 #ifndef PROXY_WORKER_H
 #define PROXY_WORKER_H
 
+#include "http_parser.h"
+
 struct msg {
     char *data;
     size_t len;
@@ -20,7 +22,8 @@ struct proxy_worker {
     eventloop_t loop;
     int fd;
     struct addrinfo *addrs, *rp; // resolved addresses for connects in progress
-    struct msg *send_queue;
+    struct msg *send_queue; // messages to send once connected
+    struct http_parser parser; // parser for incoming data
 };
 
 struct proxy_worker *proxy_worker_new(const char *host, unsigned short port,
@@ -36,6 +39,10 @@ int proxy_worker_request(struct proxy_worker *worker, const char *method,
 void proxy_worker_flush_queue(struct proxy_worker *worker);
 int proxy_worker_send(struct proxy_worker *worker, const char *data,
         size_t len);
+int proxy_worker_on_http_request(struct proxy_worker *worker,
+        struct http_parser_header *header);
+int proxy_worker_on_http_header(struct proxy_worker *worker,
+        struct http_parser_header *header);
 
 #endif /* PROXY_WORKER_H */
 

@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include "util.h"
 #include "eventloop.h"
+#include "http_parser.h"
 #include "proxy_worker.h"
 
 // Callback functions
@@ -149,7 +150,8 @@ int proxy_worker_connected(struct proxy_worker *worker) {
     }
     if (err) {
         printf("Connect failed.\n");
-        // Try next socket thing
+        close(worker->fd);
+        // Try next address
         worker->rp = worker->rp->ai_next;
         proxy_worker_try_connect(worker);
         return 0;
@@ -257,8 +259,22 @@ int proxy_worker_recv(struct proxy_worker *worker) {
         return 0;
     }
 
-    buf[len] = '\0';
-    printf("recv from server:\n%s", buf);
+    if (parser_parse(&worker->parser, buf, len)) {
+            fprintf(stderr, "Unable to parse server message\n");
+    }
 
+    return 0;
+}
+
+int proxy_worker_on_http_request(struct proxy_worker *worker,
+        struct http_parser_header *header) {
+    if (header == NULL) {
+        // finished receiving headers
+    }
+    return 0;
+}
+
+int proxy_worker_on_http_header(struct proxy_worker *worker,
+        struct http_parser_header *header) {
     return 0;
 }
