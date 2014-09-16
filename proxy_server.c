@@ -1,11 +1,11 @@
 // vi: expandtab sts=4 ts=4 sw=4
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include "util.h"
 #include "eventloop.h"
 #include "proxy_server.h"
@@ -45,14 +45,9 @@ int proxy_server_listen(struct proxy_server *ps, int port) {
     int reuse = true;
 
     // Create the proxy server socket
-    if ((ps->fd = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+    if ((ps->fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
         perror("socket");
         return 1;
-    }
-
-    // Make it non-blocking
-    if (fcntl(ps->fd, F_SETFL, O_NONBLOCK) < 0) {
-        perror("fcntl: server");
     }
 
     // Build the address to listen on
@@ -95,13 +90,9 @@ int proxy_server_accept(struct proxy_server *ps) {
     int client_fd;
     struct proxy_client *client;
 
-    if ((client_fd = accept(ps->fd, &addr, &addrlen)) < 0) {
+    if ((client_fd = accept4(ps->fd, &addr, &addrlen, SOCK_NONBLOCK)) < 0) {
         perror("accept");
         return -1;
-    }
-
-    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0) {
-        perror("fcntl: client");
     }
 
     printf("Accepted connection from %s\n", sprint_addrport(&addr));
