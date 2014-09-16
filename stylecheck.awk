@@ -15,6 +15,10 @@ FNR==1 && !/^\/\/ vi/ {
     err("tab at beginning")
 }
 
+/^.{81}/ {
+    err("line too long")
+}
+
 END {
     exit status
 }

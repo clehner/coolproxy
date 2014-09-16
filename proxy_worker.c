@@ -136,7 +136,8 @@ int proxy_worker_try_connect(struct proxy_worker *worker) {
     }
 
     // No address succeeded
-    fprintf(stderr, "Could not connect to %s:%hu\n", worker->host, worker->port);
+    fprintf(stderr, "Could not connect to %s:%hu\n",
+            worker->host, worker->port);
     freeaddrinfo(worker->addrs);
     return -2;
 }
