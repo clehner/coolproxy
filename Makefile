@@ -26,7 +26,10 @@ $(BIN): $(OBJ)
 check: $(SRC) $(INC)
 	@awk -f stylecheck.awk $? && touch $@
 
+wc:
+	@wc -l $(SRC) $(INC) | sort -n
+
 clean:
 	rm -f $(BIN) $(OBJ) $(DEP)
 
-.PHONY: clean
+.PHONY: clean wc
