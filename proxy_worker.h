@@ -8,10 +8,13 @@ struct proxy_worker {
     char *host;
     unsigned short port;
     bool idle;
+    bool connected;
+    int fd;
 };
 
 struct proxy_worker *proxy_worker_new(const char *host, unsigned short port);
 void proxy_worker_free(struct proxy_worker *worker);
+int proxy_worker_connect(struct proxy_worker *worker);
 
 #endif /* PROXY_WORKER_H */
 

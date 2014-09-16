@@ -17,7 +17,9 @@ status(200, OK)
 status(400, Bad Request)
 status(500, Internal Server Error)
 status(501, Not Implemented)
+status(502, Bad Gateway)
 status(503, Service Unavailable)
+status(504, Gateway Timeout)
 status(505, HTTP Version Not Supported)
 
 #define proxy_client_send_status(client, code) \
@@ -126,10 +128,18 @@ int proxy_client_on_http_request(struct proxy_client *client,
     }
 
     // Request a worker from the server for this hostname
-    worker = proxy_server_request_worker(client->server,
-            request->uri.host, request->uri.port);
-    if (!worker) {
+    if (!(worker = proxy_server_request_worker(client->server,
+            request->uri.host, request->uri.port))) {
         return proxy_client_send_status(client, 503);
+    }
+
+    if (!worker->connected) {
+        // Establish the connection
+        if (proxy_worker_connect(worker) < 0) {
+            // Connection failed
+            proxy_worker_free(worker);
+            return proxy_client_send_status(client, 502);
+        }
     }
 
     int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",

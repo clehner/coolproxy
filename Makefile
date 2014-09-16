@@ -4,7 +4,7 @@ SRC     = $(wildcard *.c)
 INC     = $(wildcard *.h)
 OBJ     = $(SRC:.c=.o)
 DEP     = $(SRC:.c=.d)
-CFLAGS  = -std=gnu99
+CFLAGS  = -std=gnu99 -g
 CFLAGS += -Wall -Werror -MMD
 LDFLAGS =
 

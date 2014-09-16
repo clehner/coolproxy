@@ -126,13 +126,15 @@ struct proxy_worker *proxy_server_request_worker(struct proxy_server *ps,
         const char *host, unsigned short port) {
     struct proxy_worker *worker;
 
+    // Reuse persistent server connections.
     // Look for an idle worker for this host/port
     // TODO: use a hash table instead of linked list
     for (struct proxy_worker *w = &ps->workers; w; w = w->next) {
-        if (w->idle && port == w->port && !strcmp(host, w->host)) {
+        if (w->idle && w->connected &&
+                port == w->port && !strcmp(host, w->host)) {
+            // Found an idle connected worker for this host/port
             printf("Found idle worker\n");
-            // Found an idle worker for this host/port
-            //w->idle = false;
+            w->idle = false;
             return w;
         }
     }
@@ -143,10 +145,12 @@ struct proxy_worker *proxy_server_request_worker(struct proxy_server *ps,
     if (!worker) return NULL;
 
     // Insert the worker into the linked list
+    worker->prev = &ps->workers;
     if (ps->workers.next) {
         ps->workers.next->prev = worker;
     }
     worker->next = ps->workers.next;
     ps->workers.next = worker;
+
     return worker;
 }
