@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include "util.h"
 #include "eventloop.h"
 #include "proxy_server.h"
 #include "proxy_client.h"
@@ -60,8 +61,9 @@ int on_worker_status(struct proxy_client *client,
 int on_worker_header(struct proxy_client *client,
         struct http_parser_header *header);
 
-int on_worker_body(struct proxy_client *client,
-        struct body_msg *body);
+int on_worker_body(struct proxy_client *client, struct body_msg *body);
+
+int on_worker_close(struct proxy_client *client, void *data);
 
 static int proxy_client_recv_cb(void *client, void *data) {
     return proxy_client_recv((struct proxy_client *)client);
@@ -112,8 +114,12 @@ int proxy_client_recv(struct proxy_client *client) {
         return 0;
     } else if (len == 0) {
         printf("Client disconnected\n");
-        close(client->fd);
         // fd is automatically removed from epoll set when the socket is closed.
+        proxy_client_close(client);
+
+        // Dissociate fro worker
+        proxy_worker_dissociate(client->worker);
+
         // Notify the server that we closed
         proxy_server_notify_client_closed(client->server, client);
         return 0;
@@ -127,6 +133,19 @@ int proxy_client_recv(struct proxy_client *client) {
         default:
             return 0;
     }
+}
+
+int proxy_client_send(struct proxy_client *client,
+        const char *data, size_t len) {
+    return sendall(client->fd, data, len);
+}
+
+int proxy_client_close(struct proxy_client *client) {
+    if (close(client->fd)) {
+        perror("close client");
+        return 1;
+    }
+    return 0;
 }
 
 int proxy_client_on_http_request(struct proxy_client *client,
@@ -170,22 +189,9 @@ int proxy_client_on_http_request(struct proxy_client *client,
         }
     }
 
-    /*
-    int len = snprintf(buf, sizeof buf, "host: %s, port: %hu, path: %s.\r\n",
-            worker->host, worker->port, request->uri.path);
-    if (len < 0) {
-        perror("snprintf: client http status");
-        send(client->fd, err_500, sizeof err_500, 0);
-        return 1;
-    }
-    ssize_t bytes = send(client->fd, buf, len, 0);
-    if (bytes < len) {
-        perror("send");
-    }
-    */
-
     // Set callbacks on the worker
     parser_init(&worker->parser, &worker_callbacks, client);
+    callback_set(&worker->close_cb, client, (callback_fn)on_worker_close);
 
     // Issue the request to the worker
     proxy_worker_request(worker, request->method, request->uri.path);
@@ -256,19 +262,55 @@ int on_worker_status(struct proxy_client *client,
 
 int on_worker_header(struct proxy_client *client,
         struct http_parser_header *header) {
+    char buf[256];
+
     if (header == NULL) {
         // Server finished sending headers
+        // Send empty line to client
+        if (proxy_client_send(client, "\r\n", 2) < 0) {
+            perror("send: client empty line");
+        }
         return 0;
     }
 
-    printf("worker: %s: %s\n", header->name, header->value);
+    // TODO; consider passing received header directly
+    int len = snprintf(buf, sizeof buf, "%s: %s\r\n",
+            header->name, header->value);
+    if (len < 0) {
+        perror("snprintf: worker http request");
+        return 1;
+    }
+    if (len == sizeof buf) {
+        fprintf(stderr, "Header may have been truncated\n");
+    }
+
+    //printf("worker: %s: %s\n", header->name, header->value);
+    if (proxy_client_send(client, buf, len) < 0) {
+        perror("send: client header");
+    }
     return 0;
 }
 
 int on_worker_body(struct proxy_client *client, struct body_msg *body) {
-    if (sendall(client->fd, body->msg, body->len) < 0) {
+    if (proxy_client_send(client, body->msg, body->len) < 0) {
         perror("send: worker body");
         return 1;
     }
+    return 0;
+}
+
+int on_worker_close(struct proxy_client *client, void *data) {
+    // Upstream closed.
+    printf("worker closed\n");
+    if (!client->worker) {
+        fprintf(stderr, "No worker, or worker already freed\n");
+        return 0;
+    }
+
+    proxy_worker_free(client->worker);
+    client->worker = NULL;
+
+    // Close downstream
+    proxy_client_close(client);
     return 0;
 }

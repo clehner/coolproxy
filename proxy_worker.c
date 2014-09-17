@@ -254,14 +254,37 @@ int proxy_worker_recv(struct proxy_worker *worker) {
     } else if (len == 0) {
         printf("Server closed connection\n");
         close(worker->fd);
-        // Notify the server that we closed
-        //proxy_server_notify_worker_closed(worker->server, worker);
+        // Notify someone that we closed
+        do_callback(&worker->close_cb, NULL);
         return 0;
     }
 
     if (parser_parse(&worker->parser, buf, len)) {
-            fprintf(stderr, "Unable to parse server message\n");
+        fprintf(stderr, "Unable to parse server message\n");
     }
 
     return 0;
 }
+
+int proxy_worker_close(struct proxy_worker *worker) {
+    if (close(worker->fd)) {
+        perror("close worker");
+        return 1;
+    }
+    return 0;
+}
+
+int proxy_worker_dissociate(struct proxy_worker *worker) {
+    // The client is gone.
+    // If we are still recieving data from the server, close the connection.
+    if (worker->parser.mode != parser_mode_new) {
+        proxy_worker_close(worker);
+        // Remove this worker
+        proxy_worker_free(worker);
+    } else {
+        // Otherwise, if the connection is still open, mark this worker as idle.
+        worker->idle = true;
+    }
+    return 0;
+}
+

@@ -9,7 +9,7 @@
 #include "util.h"
 
 int do_callback(struct callback *cb, void *data) {
-    return cb->fn ? cb->fn(cb->obj, data) : -1;
+    return cb && cb->fn ? cb->fn(cb->obj, data) : -1;
 }
 
 void callback_set(struct callback *cb, void *obj, callback_fn fn) {
@@ -37,7 +37,8 @@ sprint_addrport(struct sockaddr *in)
         }
         port = addr4->sin_port;
     } else {
-        if (!inet_ntop(AF_INET6, &(addr->sin6_addr), buffer6, INET6_ADDRSTRLEN)) {
+        if (!inet_ntop(AF_INET6, &(addr->sin6_addr), buffer6,
+                    INET6_ADDRSTRLEN)) {
             perror("inet_ntop");
             buffer6[0] = '\0';
         }

@@ -30,6 +30,6 @@ wc:
 	@wc -l $(SRC) $(INC) | sort -n
 
 clean:
-	rm -f $(BIN) $(OBJ) $(DEP)
+	rm -f $(BIN) $(OBJ) $(DEP) check
 
 .PHONY: clean wc

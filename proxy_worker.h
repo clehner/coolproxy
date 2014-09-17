@@ -15,6 +15,7 @@ struct proxy_worker {
     struct proxy_worker *prev;
     struct callback connect_cb;
     struct callback recv_cb;
+    struct callback close_cb;
     char *host;
     unsigned short port;
     bool idle;
@@ -39,6 +40,8 @@ int proxy_worker_request(struct proxy_worker *worker, const char *method,
 void proxy_worker_flush_queue(struct proxy_worker *worker);
 int proxy_worker_send(struct proxy_worker *worker, const char *data,
         size_t len);
+int proxy_worker_close(struct proxy_worker *worker);
+int proxy_worker_dissociate(struct proxy_worker *worker);
 int proxy_worker_on_http_request(struct proxy_worker *worker,
         struct http_parser_header *header);
 int proxy_worker_on_http_header(struct proxy_worker *worker,

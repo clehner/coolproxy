@@ -132,7 +132,7 @@ void parser_handle_header_line(struct http_parser *parser, const char *buf) {
 
     char *split = strchr(buf, ':');
     if (!split) {
-        fprintf(stderr, "Missing colon in header line\n");
+        fprintf(stderr, "Missing colon in header line %s\n", buf);
         return;
     }
     *split = '\0';
