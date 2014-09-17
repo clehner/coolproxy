@@ -117,8 +117,12 @@ int proxy_client_recv(struct proxy_client *client) {
         // fd is automatically removed from epoll set when the socket is closed.
         proxy_client_close(client);
 
-        // Dissociate fro worker
-        proxy_worker_dissociate(client->worker);
+        // Dissociate from worker
+        if (client->worker) {
+            proxy_worker_dissociate(client->worker);
+        } else {
+            printf("No worker to dissociate\n");
+        }
 
         // Notify the server that we closed
         proxy_server_notify_client_closed(client->server, client);
