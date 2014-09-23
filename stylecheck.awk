@@ -15,7 +15,7 @@ FNR==1 && !/^\/\/ vi/ {
     err("tab at beginning")
 }
 
-/^.{81}/ {
+length($0) > 80 {
     err("line too long")
 }
 

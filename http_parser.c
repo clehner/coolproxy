@@ -195,7 +195,7 @@ size_t parser_parse_once(struct http_parser *parser, const char *buf,
     size_t line_len;
     size_t len_read;
 
-    //printf("parse once len: %zu\n", len);
+    //printf("parse once (%zu): \"%s\"\n", len, buf);
     switch (parser->state) {
         case parser_state_new:
             // Read status line
