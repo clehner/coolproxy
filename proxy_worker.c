@@ -267,7 +267,7 @@ int proxy_worker_send(struct proxy_worker *worker, const char *data,
 
 int proxy_worker_recv(struct proxy_worker *worker) {
     size_t len = 0;
-    char buf[512];
+    char buf[1024];
 
     len = recv(worker->fd, buf, sizeof buf - 1, 0);
     if (len == -1) {

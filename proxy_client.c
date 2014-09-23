@@ -107,7 +107,7 @@ struct proxy_client *proxy_client_new(eventloop_t loop,
 
 int proxy_client_recv(struct proxy_client *client) {
     size_t len = 0;
-    char buf[512];
+    char buf[1024];
 
     len = recv(client->fd, buf, sizeof buf, 0);
     if (len == -1) {

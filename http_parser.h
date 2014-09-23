@@ -58,7 +58,7 @@ struct http_parser_header {
 };
 
 struct http_parser {
-    char line_buffer[512];
+    char line_buffer[1024];
     size_t line_buffer_len;
     enum parser_state state;
     struct http_parser_callbacks *callbacks;

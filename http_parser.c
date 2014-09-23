@@ -191,7 +191,7 @@ int parser_parse_line(struct http_parser *parser, const char *buf,
 // Returns number of bytes parsed in buf
 size_t parser_parse_once(struct http_parser *parser, const char *buf,
         size_t len) {
-    char line[512];
+    char line[1024];
     size_t line_len;
     size_t len_read;
 
