@@ -4,10 +4,10 @@
 
 #include "util.h"
 
-enum parser_mode {
-    parser_mode_new,
-    parser_mode_headers,
-    parser_mode_body
+enum parser_state {
+    parser_state_new,
+    parser_state_headers,
+    parser_state_body
 };
 
 enum http_scheme {
@@ -58,8 +58,9 @@ struct http_parser_header {
 };
 
 struct http_parser {
-    char line_buffer[256];
-    enum parser_mode mode;
+    char line_buffer[512];
+    size_t line_buffer_len;
+    enum parser_state state;
     struct http_parser_callbacks *callbacks;
     void *obj;
 };

@@ -277,7 +277,7 @@ int proxy_worker_close(struct proxy_worker *worker) {
 int proxy_worker_dissociate(struct proxy_worker *worker) {
     // The client is gone.
     // If we are still recieving data from the server, close the connection.
-    if (worker->parser.mode != parser_mode_new) {
+    if (worker->parser.state != parser_state_new) {
         proxy_worker_close(worker);
         // Remove this worker
         proxy_worker_free(worker);
