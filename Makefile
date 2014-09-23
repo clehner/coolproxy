@@ -29,7 +29,10 @@ check: $(SRC) $(INC)
 wc:
 	@wc -l $(SRC) $(INC) | sort -n
 
+test: test-curl.sh $(BIN)
+	./test-curl.sh
+
 clean:
 	rm -f $(BIN) $(OBJ) $(DEP) check
 
-.PHONY: clean wc
+.PHONY: clean wc test
