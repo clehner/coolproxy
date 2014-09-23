@@ -48,9 +48,6 @@ int proxy_client_on_http_request(struct proxy_client *client,
 int proxy_client_on_http_header(struct proxy_client *client,
         struct http_parser_header *header);
 
-int proxy_client_on_http_header(struct proxy_client *client,
-        struct http_parser_header *header);
-
 int proxy_client_on_http_body(struct proxy_client *client,
         struct body_msg *body);
 
@@ -221,6 +218,13 @@ int proxy_client_on_http_header(struct proxy_client *client,
         // Send empty line to worker
         proxy_worker_send(client->worker, "\r\n", 2);
         return 0;
+    }
+
+    // Filter out Connection header
+    if (!strcmp("Connection", header->name)) {
+        // Does the client want to have a persistent connection to the proxy
+        // server?
+        client->persistent_connection = (strcmp("Close", header->value) != 0);
     }
 
     len = parser_write_header(header, buf, sizeof buf);
