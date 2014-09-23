@@ -12,7 +12,7 @@
 #include "proxy_worker.h"
 
 #define status(code, reason) \
-    const char err_##code[] = "HTTP/1.1 "#code" "#reason"\r\n\r\n";
+    const char err_##code[] = "HTTP/1.1 "#code" "#reason"\r\n\r\n"#reason"\n";
 
 status(200, OK)
 status(400, Bad Request)
@@ -23,8 +23,9 @@ status(503, Service Unavailable)
 status(504, Gateway Timeout)
 status(505, HTTP Version Not Supported)
 
-#define proxy_client_send_status(client, code) \
-    send(client->fd, err_##code, sizeof err_##code, 0)
+#define proxy_client_send_error(client, code) \
+    send(client->fd, err_##code, sizeof err_##code, 0) >= 0 ? \
+    close(client->fd) : -1
 
 /*
  * a client that has connected to the proxy server
@@ -129,14 +130,12 @@ int proxy_client_recv(struct proxy_client *client) {
         return 0;
     }
 
-    switch (parser_parse(&client->parser, buf, len)) {
-        case 400:
-            fprintf(stderr, "Received message without \\r\n");
-            proxy_client_send_status(client, 400);
-            return 1;
-        default:
-            return 0;
+    if (parser_parse(&client->parser, buf, len)) {
+        fprintf(stderr, "Error parsing HTTP\n");
+        proxy_client_send_error(client, 400);
+        return 1;
     }
+    return 0;
 }
 
 int proxy_client_send(struct proxy_client *client,
@@ -159,7 +158,7 @@ int proxy_client_on_http_request(struct proxy_client *client,
 
     // Check HTTP version
     if (request->http_version.major_version > 1) {
-        return proxy_client_send_status(client, 505);
+        return proxy_client_send_error(client, 505);
     }
 
     // Assume persistent connection for HTTP/1.1 client, for now
@@ -169,18 +168,18 @@ int proxy_client_on_http_request(struct proxy_client *client,
 
     // Check scheme
     if (request->uri.scheme != http_scheme_http) {
-        return proxy_client_send_status(client, 501);
+        return proxy_client_send_error(client, 501);
     }
 
     // Give an error if the uri is just a path
     if (!request->uri.host) {
-        return proxy_client_send_status(client, 400);
+        return proxy_client_send_error(client, 400);
     }
 
     // Request a worker from the server for this hostname
     if (!(worker = proxy_server_request_worker(client->server,
             request->uri.host, request->uri.port))) {
-        return proxy_client_send_status(client, 503);
+        return proxy_client_send_error(client, 503);
     }
     client->worker = worker;
 
@@ -189,7 +188,8 @@ int proxy_client_on_http_request(struct proxy_client *client,
         if (proxy_worker_connect(worker) < 0) {
             // Connection failed
             proxy_worker_free(worker);
-            return proxy_client_send_status(client, 502);
+            client->worker = NULL;
+            return proxy_client_send_error(client, 502);
         }
     }
 
@@ -198,7 +198,9 @@ int proxy_client_on_http_request(struct proxy_client *client,
     callback_set(&worker->close_cb, client, (callback_fn)on_worker_close);
 
     // Issue the request to the worker
-    proxy_worker_request(worker, request->method, request->uri.path);
+    if (proxy_worker_request(worker, request->method, request->uri.path)) {
+        printf("Unable to send request to worker\n");
+    }
 
     return 0;
 }
@@ -206,26 +208,30 @@ int proxy_client_on_http_request(struct proxy_client *client,
 int proxy_client_on_http_header(struct proxy_client *client,
         struct http_parser_header *header) {
     char buf[256];
+    int len;
+
+    if (!client->worker) {
+        // Upstream connection is gone. Client connection should be already
+        // closed now.
+        return 0;
+    }
+
     if (header == NULL) {
         // Finished receiving headers.
         // Send empty line to worker
-        if (!client->worker) {
-            fprintf(stderr, "Finished receiving headers but worker is gone\n");
-            return 0;
-        }
         proxy_worker_send(client->worker, "\r\n", 2);
         return 0;
     }
 
-    int len = snprintf(buf, sizeof buf, "You sent %s: %s\r\n",
-            header->name, header->value);
-    if (len < 0) {
-        perror("snprintf: client http status");
-        send(client->fd, err_500, sizeof err_500, 0);
-        return 1;
+    len = parser_write_header(header, buf, sizeof buf);
+    if (!len) {
+        fprintf(stderr, "Unable to write header\n");
+        return 0;
+    }
+    if (proxy_worker_send(client->worker, buf, len)) {
+        fprintf(stderr, "Unable to send header\n");
     }
 
-    send(client->fd, buf, len, 0);
     return 0;
 }
 

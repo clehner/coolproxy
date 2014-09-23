@@ -8,6 +8,7 @@ struct msg {
     char *data;
     size_t len;
     struct msg *next;
+    struct msg *prev;
 };
 
 struct proxy_worker {
@@ -24,6 +25,7 @@ struct proxy_worker {
     int fd;
     struct addrinfo *addrs, *rp; // resolved addresses for connects in progress
     struct msg *send_queue; // messages to send once connected
+    struct msg *send_queue_tail; // first message to send once connected
     struct http_parser parser; // parser for incoming data
 };
 
@@ -40,6 +42,8 @@ int proxy_worker_request(struct proxy_worker *worker, const char *method,
 void proxy_worker_flush_queue(struct proxy_worker *worker);
 int proxy_worker_send(struct proxy_worker *worker, const char *data,
         size_t len);
+int proxy_worker_send_header(struct proxy_worker *worker,
+        struct http_parser_header *header);
 int proxy_worker_close(struct proxy_worker *worker);
 int proxy_worker_dissociate(struct proxy_worker *worker);
 int proxy_worker_on_http_request(struct proxy_worker *worker,

@@ -68,5 +68,7 @@ struct http_parser {
 void parser_init(struct http_parser *parser, struct http_parser_callbacks *cbs,
         void *obj);
 int parser_parse(struct http_parser *parser, const char *buf, size_t len);
+int parser_write_header(struct http_parser_header *header,
+        char *buf, size_t len);
 
 #endif /* HTTP_PARSER_H */

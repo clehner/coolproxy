@@ -38,7 +38,7 @@ void parse_http_version(struct http_version *version, char *version_str) {
 int parser_handle_status_line(struct http_parser *parser, const char *buf) {
     struct http_parser_status status;
 
-    printf("got status line \"%s\"\n", buf);
+    //printf("got status line \"%s\"\n", buf);
 
     // Get the first word of the line (HTTP version)
     char *space = strchr(buf, ' ');
@@ -70,7 +70,7 @@ int parser_handle_request_line(struct http_parser *parser, const char *buf) {
     struct http_parser_request req;
     char *uri;
 
-    printf("got request line \"%s\"\n", buf);
+    //printf("got request line \"%s\"\n", buf);
 
     // Get the first word of the line (request method)
     char *first = strchr(buf, ' ');
@@ -165,7 +165,8 @@ int parser_parse_line(struct http_parser *parser, const char *buf,
             buf_avail = len;
         }
         memcpy(parser->line_buffer + parser->line_buffer_len, buf, buf_avail);
-        return len;
+        *bytes_read = len;
+        return 0;
     }
 
     // next time this function is called, buf will be advanced by line_len
@@ -194,11 +195,13 @@ size_t parser_parse_once(struct http_parser *parser, const char *buf,
     size_t line_len;
     size_t len_read;
 
+    //printf("parse once len: %zu\n", len);
     switch (parser->state) {
         case parser_state_new:
             // Read status line
             if (!parser_parse_line(parser, buf, len, line, &line_len,
                         &len_read)) {
+                printf("returning %zu\n", len_read);
                 return len_read;
             }
 
@@ -217,6 +220,7 @@ size_t parser_parse_once(struct http_parser *parser, const char *buf,
             // Read a header line
             if (!parser_parse_line(parser, buf, len, line, &line_len,
                         &len_read)) {
+                printf("returning %zu\n", len_read);
                 return len_read;
             }
 
@@ -225,7 +229,7 @@ size_t parser_parse_once(struct http_parser *parser, const char *buf,
                 parser_callback(parser, on_header, NULL);
                 // Receive body now
                 parser->state = parser_state_body;
-                break;
+                return len_read;
             }
 
             parser_handle_header_line(parser, line);
@@ -237,6 +241,7 @@ size_t parser_parse_once(struct http_parser *parser, const char *buf,
             return len;
     }
 
+    printf("fall-through\n");
     return 0;
 }
 
@@ -250,4 +255,13 @@ int parser_parse(struct http_parser *parser, const char *buf, size_t len) {
         buf += len_parsed;
     }
     return 0;
+}
+
+// write a header to a string.
+// return bytes written on success, 0 on failure
+int parser_write_header(struct http_parser_header *header,
+        char *buf, size_t buf_len) {
+    int len = snprintf(buf, buf_len, "%s: %s\r\n", header->name, header->value);
+    if (len < 0) return 1;
+    return len;
 }

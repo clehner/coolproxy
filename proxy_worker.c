@@ -184,8 +184,9 @@ void proxy_worker_flush_queue(struct proxy_worker *worker) {
     }
 
     // TODO: investigate using a pipe
-    while (worker->send_queue) {
-        struct msg *msg = worker->send_queue;
+    struct msg *prev;
+    for (struct msg *msg = worker->send_queue_tail; msg; msg = prev) {
+        //printf("send (%zu) \"%s\"\n", msg->len, msg->data);
         ssize_t bytes = send(worker->fd, msg->data, msg->len, 0);
         if (bytes < 0) {
             perror("send queue");
@@ -194,9 +195,22 @@ void proxy_worker_flush_queue(struct proxy_worker *worker) {
             printf("Send incomplete\n");
         }
         // TODO: use offset from bytes sent when retransmitting
-        worker->send_queue = msg->next;
+        prev = msg->prev;
         free(msg);
     }
+}
+
+int proxy_worker_send_header(struct proxy_worker *worker,
+        struct http_parser_header *header) {
+    char buf[256];
+    int len = snprintf(buf, sizeof buf, "%s: %s\r\n", header->name,
+            header->value);
+    if (len < 0) {
+        perror("snprintf: worker http header");
+        return 1;
+    }
+    proxy_worker_send(worker, (const char *)buf, len);
+    return 0;
 }
 
 int proxy_worker_request(struct proxy_worker *worker, const char *method,
@@ -208,14 +222,19 @@ int proxy_worker_request(struct proxy_worker *worker, const char *method,
         perror("snprintf: worker http request");
         return 1;
     }
-    proxy_worker_send(worker, (const char *)buf, len);
+
+    if (proxy_worker_send(worker, (const char *)buf, len)) return 1;
+    /*
+    if (proxy_worker_send_header(worker,
+            &(struct http_parser_header){"Connection", "Close"})) return 1;
+    if (proxy_worker_send(worker, "\r\n", 2)) return 1;
+    */
     return 0;
 }
 
 int proxy_worker_send(struct proxy_worker *worker, const char *data,
         size_t len) {
     if (worker->connected) {
-        printf("send!\n");
         if (sendall(worker->fd, data, len) < 0) {
             perror("send: worker");
             return 1;
@@ -236,6 +255,11 @@ int proxy_worker_send(struct proxy_worker *worker, const char *data,
         msg->data = buf;
         msg->len = len;
         msg->next = worker->send_queue;
+        if (worker->send_queue) {
+            worker->send_queue->prev = msg;
+        } else {
+            worker->send_queue_tail = msg;
+        }
         worker->send_queue = msg;
     }
     return 0;
