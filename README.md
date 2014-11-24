@@ -40,14 +40,14 @@ handles data received from the upstream servers.
 ## Event-driven Architecture
 
 Using an event-driven approach allows the server to potentially scale to
-serve many concurrent requests, as in the The C10K problem [1], by using
+serve many concurrent requests, as in the [The C10K problem][1], by using
 nonblocking IO and not taking on the overhead of threads is not used. In a
 more sophisticated implementation, there may be multiple worker threads to
 take advantage of multiple processors, CPU pipelining, etc.
 
 Currently the address resolution is implemented in a blocking way, but this
 could be changed by using the asynchronous getaddrinfo_a(3) or a standalone
-nonblocking DNS library such as c-ares [2].
+nonblocking DNS library such as [c-ares][2].
 
 The event loop uses epoll(7), which is a feature of the Linux kernel. The
 implementation in this program could be extended to support other event
