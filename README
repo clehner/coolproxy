@@ -1,13 +1,8 @@
-                            University of Rochester
-                               CSC 257, Fall 2014
-							 #1 - Web Proxy Server
-                                 Charles Lehner
+# coolproxy
 
 Web proxy server. Implemented using a single-threaded epoll-based event loop.
 Handles concurrent connections. Has some work towards handling persistent
 connections on the upstream side, but not yet on the client side.
-
-Source (with git repo): csug:/u/clehner/2014f/csc257/1-proxy
 
 Usage
 
@@ -91,5 +86,23 @@ Issues and limitations
 	Support for handling HTTP payloads from the client, i.e. with POST or PUT
 	requests, is not yet tested.
 
-[1] http://www.kegel.com/c10k.html
-[2] http://c-ares.haxx.se/
+License
+	
+	coolproxy
+    Copyright (C) 2014 Charles Lehner
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[1]: http://www.kegel.com/c10k.html
+[2]: http://c-ares.haxx.se/
