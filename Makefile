@@ -2,8 +2,8 @@ BIN     = coolproxy
 DIST    = coolproxy.tar.gz
 CC     ?= cc
 CHECK   = stylecheck.awk
-SRC     = $(wildcard *.c)
-INC     = $(wildcard *.h)
+SRC     = $(wildcard src/*.c)
+INC     = $(wildcard src/*.h)
 OBJ     = $(SRC:.c=.o)
 DEP     = $(SRC:.c=.d)
 CFLAGS  = -std=gnu99 -g
