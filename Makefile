@@ -35,7 +35,7 @@ wc:
 test: $(TEST) $(BIN)
 	./$(TEST)
 
-$(DIST): $(SRC) $(INC) $(CHECK) $(TEST) Makefile README
+$(DIST): $(SRC) $(INC) $(CHECK) $(TEST) Makefile README.md
 	tar czf $@ $^
 
 dist: $(DIST)
